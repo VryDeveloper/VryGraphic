@@ -1,0 +1,270 @@
+// VryGraphic — modelo de dados
+// Regras: dinheiro sempre em centavos (BigInt), toda tabela tem dono (userId),
+// saldos nunca são guardados: saldo = saldo inicial + SUM(amount_cents).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["typedSql"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountKind {
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  INVESTMENT
+  CASH
+}
+
+enum TxKind {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum TxSource {
+  MANUAL
+  COMMAND
+  CSV
+  RECURRING
+  AGENT
+  DEMO
+}
+
+enum InvoiceStatus {
+  OPEN
+  CLOSED
+  PAID
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  timezone     String   @default("America/Sao_Paulo")
+  isDemo       Boolean  @default(false) @map("is_demo")
+  /// guia de primeiro uso concluído ou pulado (null = mostrar o guia)
+  onboardedAt  DateTime? @map("onboarded_at") @db.Timestamptz
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  refreshTokens RefreshToken[]
+  accounts      Account[]
+  categories    Category[]
+  transactions  Transaction[]
+  budgets       Budget[]
+  goals            Goal[]
+  alerts           Alert[]
+  alertRules       AlertRule[]
+  installmentPlans InstallmentPlan[]
+  recurrences      Recurrence[]
+
+  @@map("users")
+}
+
+// Portado da jwt-api (VryAuth), agora guardando só o HASH do token,
+// com rotação a cada uso e detecção de reuso pela família.
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  familyId   String    @map("family_id") @db.Uuid
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+model Account {
+  id                  String      @id @default(uuid()) @db.Uuid
+  userId              String      @map("user_id") @db.Uuid
+  name                String
+  kind                AccountKind
+  aliases             String[]    @default([])
+  openingBalanceCents BigInt      @default(0) @map("opening_balance_cents")
+  creditLimitCents    BigInt?     @map("credit_limit_cents")
+  closingDay          Int?        @map("closing_day")
+  dueDay              Int?        @map("due_day")
+  deletedAt           DateTime?   @map("deleted_at") @db.Timestamptz
+  createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  invoices     CardInvoice[]
+  goals        Goal[]
+  recurrences  Recurrence[]
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Category {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  name      String
+  kind      TxKind
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+  recurrences  Recurrence[]
+
+  @@unique([userId, name])
+  @@map("categories")
+}
+
+model Transaction {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  accountId         String    @map("account_id") @db.Uuid
+  categoryId        String?   @map("category_id") @db.Uuid
+  kind              TxKind
+  amountCents       BigInt    @map("amount_cents") // negativo = saída
+  description       String
+  occurredAt        DateTime  @map("occurred_at") @db.Timestamptz
+  invoiceId         String?   @map("invoice_id") @db.Uuid
+  transferGroupId   String?   @map("transfer_group_id") @db.Uuid
+  installmentPlanId String?   @map("installment_plan_id") @db.Uuid
+  installmentNo     Int?      @map("installment_no")
+  recurrenceId      String?   @map("recurrence_id") @db.Uuid
+  source            TxSource  @default(MANUAL)
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account         Account          @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category        Category?        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  invoice         CardInvoice?     @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  installmentPlan InstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: Restrict)
+  recurrence      Recurrence?      @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt(sort: Desc)])
+  @@index([accountId, occurredAt, id])
+  @@index([userId, categoryId, occurredAt])
+  @@index([transferGroupId])
+  @@map("transactions")
+}
+
+model CardInvoice {
+  id          String        @id @default(uuid()) @db.Uuid
+  accountId   String        @map("account_id") @db.Uuid
+  month       String // "AAAA-MM": a fatura que fecha nesse mês
+  closingDate DateTime      @map("closing_date") @db.Date
+  dueDate     DateTime      @map("due_date") @db.Date
+  status      InvoiceStatus @default(OPEN)
+
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([accountId, month])
+  @@map("card_invoices")
+}
+
+model InstallmentPlan {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  description String
+  totalCents  BigInt   @map("total_cents")
+  count       Int
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("installment_plans")
+}
+
+model Recurrence {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  description String
+  amountCents BigInt   @map("amount_cents")
+  dayOfMonth  Int      @map("day_of_month")
+  nextRunOn   DateTime @map("next_run_on") @db.Date
+  active      Boolean  @default(true)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category     Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("recurrences")
+}
+
+model Budget {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
+  month      String // "AAAA-MM"
+  limitCents BigInt   @map("limit_cents")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId, month])
+  @@map("budgets")
+}
+
+model Goal {
+  id                       String  @id @default(uuid()) @db.Uuid
+  userId                   String  @map("user_id") @db.Uuid
+  accountId                String  @map("account_id") @db.Uuid
+  name                     String
+  targetCents              BigInt  @map("target_cents")
+  monthlyContributionCents BigInt  @map("monthly_contribution_cents")
+  monthlyRateBps           Int     @default(85) @map("monthly_rate_bps")
+  /// última previsão de conclusão ("AAAA-MM"); o alerta dispara quando muda
+  lastEtaMonth             String? @map("last_eta_month")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@map("goals")
+}
+
+model Alert {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  kind      String
+  dedupeKey String    @map("dedupe_key")
+  message   String
+  payload   Json      @default("{}")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  readAt    DateTime? @map("read_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("alerts")
+}
+
+/// Regras de alerta por usuário. Sem linha para um tipo = regra no padrão (ver alerts/rules.ts).
+model AlertRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  kind      String
+  enabled   Boolean  @default(true)
+  threshold Int?
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind])
+  @@map("alert_rules")
+}

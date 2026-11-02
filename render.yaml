@@ -1,0 +1,23 @@
+# Blueprint do Render: um Postgres + um serviço web (Docker) ligados.
+# No painel do Render: New → Blueprint → escolha este repositório.
+databases:
+  - name: vrygraphic-db
+    plan: free
+    databaseName: vrygraphic
+    user: vry
+
+services:
+  - type: web
+    name: vrygraphic
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vrygraphic-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEMO_RESET
+        value: "true"

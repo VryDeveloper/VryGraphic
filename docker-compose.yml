@@ -1,0 +1,37 @@
+# Postgres local do VryGraphic. Porta 5433 no seu PC para não brigar com outro Postgres na 5432.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: vrygraphic-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vry
+      POSTGRES_PASSWORD: vry
+      POSTGRES_DB: vrygraphic
+    ports:
+      - "5433:5432"
+    volumes:
+      - vrygraphic-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vry -d vrygraphic"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # O app inteiro como vai rodar em produção (API + front num container):
+  #   docker compose --profile app up --build   →   http://localhost:8080
+  app:
+    profiles: ["app"]
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://vry:vry@db:5432/vrygraphic?schema=public
+      JWT_SECRET: segredo-local-so-para-testar-o-container-123
+      DEMO_RESET: "true"
+    ports:
+      - "8080:3333"
+
+volumes:
+  vrygraphic-data:
