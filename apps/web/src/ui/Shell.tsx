@@ -12,16 +12,15 @@ const TABS: { id: TabId; n: number; label: string; ready: boolean; phase?: strin
 
 export type TickerItem = [label: string, value: string, positive: boolean];
 
-/** Faixa padrão (fora da Visão geral): o estado do projeto. */
+/** Faixa padrão (fora da Visão geral, que mostra os números do mês): a stack e o que está por trás. */
 const PROJECT_TICKER: TickerItem[] = [
-  ['FASE', '7 · AGENTE', true],
-  ['NÚCLEO', '45 TESTES', true],
-  ['API', '79 TESTES DA API', true],
+  ['STACK', 'REACT · EXPRESS · POSTGRESQL', true],
+  ['TESTES', '124 PASSANDO', true],
   ['SQL', 'WINDOW FUNCTIONS', true],
-  ['DINHEIRO', 'CENTAVOS', false],
-  ['PARSER', 'COMPARTILHADO', true],
   ['AUTH', 'JWT + REFRESH ROTATIVO', false],
-  ['BANCO', 'POSTGRESQL', false],
+  ['DINHEIRO', 'CENTAVOS INTEIROS', false],
+  ['JOBS', 'CONTAS FIXAS + ALERTAS', true],
+  ['AGENTE', 'POWERED BY CLAUDE', true],
 ];
 
 export function Ticker({ items: custom }: { items?: TickerItem[] | null }) {

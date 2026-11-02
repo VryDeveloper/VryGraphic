@@ -30,7 +30,7 @@ function Footer() {
     <footer className="footer" aria-label="Status dos serviços">
       <span><span className={cls(h.api)} />API {h.api}</span>
       <span><span className={cls(h.db)} />BANCO {h.db}</span>
-      <span>VryGraphic · fase 7</span>
+      <span>VryGraphic · v1.0</span>
     </footer>
   );
 }

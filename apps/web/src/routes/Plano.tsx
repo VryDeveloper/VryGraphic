@@ -149,7 +149,7 @@ function BudgetPanel({ month, onToast }: { month: string; onToast: (m: string) =
                   <td className="hide-s">
                     {r.ratio !== null ? (
                       <span className="use">
-                        <span className="track"><span className={`hb ${over ? 'hot' : r.status === 'warn' ? 'warnb' : ''}`} style={{ width: `${w * 100}%`, animationDelay: `${i * 40}ms` }} /></span>
+                        <span className="meter"><span className={`hb ${over ? 'hot' : r.status === 'warn' ? 'warnb' : ''}`} style={{ width: `${w * 100}%`, animationDelay: `${i * 40}ms` }} /></span>
                         <span className={over ? 'over' : 'label'}>{Math.round(r.ratio * 100)}%</span>
                       </span>
                     ) : <span className="label">—</span>}
@@ -243,7 +243,7 @@ function Goals({ onToast }: { onToast: (m: string) => void }) {
             <li key={g.id}>
               <button type="button" className={`goal ${g.id === selected ? 'on' : ''}`} onClick={() => setSelected(g.id)} aria-pressed={g.id === selected}>
                 <span className="kv0"><span>{g.name.toUpperCase()}</span><span className={g.progress >= 1 ? 'gain' : ''}>{Math.round(g.progress * 100)}%</span></span>
-                <span className="track"><span className="hb saved" style={{ width: `${g.progress * 100}%` }} /></span>
+                <span className="meter"><span className="hb saved" style={{ width: `${g.progress * 100}%` }} /></span>
                 <span className="kv0 label">
                   <span>{formatPlain(g.currentCents)} / {formatPlain(g.targetCents)}</span>
                   <span>{g.progress >= 1 ? 'concluída' : `${formatPlain(g.monthlyContributionCents)}/mês · ${g.projection.etaMonth ? fmtMonthTag(g.projection.etaMonth) + '/' + g.projection.etaMonth.slice(2, 4) : 'sem previsão'}`}</span>

@@ -192,7 +192,7 @@ function AllocationPanel({ d }: { d: api.Dashboard }) {
               <span className={r.overBudget ? 'over' : ''}>{r.name.toUpperCase()}{r.overBudget && <span aria-label="acima do orçamento"> ▲</span>}</span>
               <span className={r.saved ? 'gain' : r.overBudget ? 'over' : ''}>{formatPlain(r.cents)}</span>
             </div>
-            <div className="track" title={a.incomeCents ? `${pct(r.share)} da renda` : undefined}>
+            <div className="meter" title={a.incomeCents ? `${pct(r.share)} da renda` : undefined}>
               <span className={`hb ${r.saved ? 'saved' : r.overBudget ? 'hot' : ''}`} style={{ width: `${(r.cents / max) * 100}%`, animationDelay: `${i * 60}ms` }} />
             </div>
           </li>
