@@ -11,8 +11,9 @@ COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY apps/api/prisma apps/api/prisma
-# --omit=optional: o terminal nativo do Modo Dev (node-pty) não vai para produção
-RUN npm ci --omit=optional
+# Sem --omit=optional: o build do front (Rollup/esbuild) usa binários nativos que vêm como dependências opcionais.
+# O node-pty do Modo Dev também é instalado, mas nunca é usado em produção (o terminal não liga com NODE_ENV=production).
+RUN npm ci
 
 # 2) código e build do front
 COPY . .

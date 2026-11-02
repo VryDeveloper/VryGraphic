@@ -28,7 +28,7 @@ const id = z.string().uuid('id inválido');
 const isoDate = z.string().regex(ISO_DATE, 'data no formato AAAA-MM-DD');
 const isoMonth = z.string().regex(ISO_MONTH, 'mês no formato AAAA-MM');
 /** Centavos: inteiro, positivo, até R$ 10 milhões por lançamento. */
-const positiveCents = z.number({ invalid_type_error: 'valor em centavos' }).int('centavos inteiros').positive('valor maior que zero').max(1_000_000_000, 'valor alto demais');
+const positiveCents = z.number({ error: 'valor em centavos' }).int('centavos inteiros').positive('valor maior que zero').max(1_000_000_000, 'valor alto demais');
 const cents = z.number().int('centavos inteiros').min(-1_000_000_000).max(1_000_000_000);
 const name = z.string().trim().min(1, 'informe o nome').max(60, 'até 60 caracteres');
 const day = z.number().int().min(1, 'dia de 1 a 31').max(31, 'dia de 1 a 31');
